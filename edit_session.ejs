@@ -1,1 +1,16 @@
+<form action="/charging/edit/<%= session.id %>" method="POST">
 
+    <label>Charging Date</label>
+    <input type="date"
+           name="session_date"
+           value="<%= session.session_date %>"
+           required>
+
+    <label>Charging Time</label>
+    <input type="time"
+           name="time_slot"
+           value="<%= session.time_slot %>"
+           required>
+
+    <button type="submit">Save Changes</button>
+</form>
