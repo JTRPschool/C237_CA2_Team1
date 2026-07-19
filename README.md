@@ -1,6 +1,6 @@
 # EV App - C237 CA2
 
-An EV battery health and charging management web app. Built following the L20 supermarket app patterns.
+An EV battery health and charging management web app.
 
 ## Team Feature Ownership
 
