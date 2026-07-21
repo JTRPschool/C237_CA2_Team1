@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Add Battery Log</title>
+</head>
+<body>
+    <h2>Add Battery Log</h2>
+    <form action="/addBatteryLog" method="POST">
+        <label>Select Vehicle:</label><br>
+        <select name="vehicle_id" required>
+            <% vehicles.forEach(function(vehicle) { %>
+                <option value="<%= vehicle.id %>"><%= vehicle.model %></option>
+            <% }); %>
+        </select><br><br>
+
+        <label>Log Date:</label><br>
+        <input type="date" name="log_date" required><br><br>
+
+        <label>Current Mileage (km):</label><br>
+        <input type="number" name="mileage" required><br><br>
+
+        <label>State of Health (SoH %):</label><br>
+        <input type="number" step="0.1" name="soh_percentage" min="0" max="100" required><br><br>
+
+        <button type="submit">Save Log</button>
+        <a href="/dashboard">Cancel</a>
+    </form>
+</body>
+</html>

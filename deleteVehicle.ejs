@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Delete Vehicle</title>
+</head>
+<body>
+    <h2>Confirm Delete Vehicle</h2>
+    <p>Are you sure you want to delete the vehicle <strong><%= vehicle.model %></strong>?</p>
+    <form action="/deleteVehicle/<%= vehicle.id %>" method="POST">
+        <button type="submit">Yes, Delete</button>
+        <a href="/dashboard">Cancel</a>
+    </form>
+</body>
+</html>

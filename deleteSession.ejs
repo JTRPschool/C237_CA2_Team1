@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Delete Charging Session</title>
+</head>
+<body>
+    <h2>Confirm Delete Charging Session</h2>
+    <p>Are you sure you want to cancel and delete charging session #<strong><%= session.id %></strong>?</p>
+    <form action="/deleteSession/<%= session.id %>" method="POST">
+        <button type="submit">Yes, Delete</button>
+        <a href="/dashboard">Cancel</a>
+    </form>
+</body>
+</html>

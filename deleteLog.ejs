@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Delete Battery Log</title>
+</head>
+<body>
+    <h2>Confirm Delete Battery Log</h2>
+    <p>Are you sure you want to delete log #<strong><%= log.id %></strong>?</p>
+    <form action="/deleteLog/<%= log.id %>" method="POST">
+        <button type="submit">Yes, Delete</button>
+        <a href="/dashboard">Cancel</a>
+    </form>
+</body>
+</html>

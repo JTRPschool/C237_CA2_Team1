@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Add Charging Station</title>
+</head>
+<body>
+    <h2>Add Charging Station</h2>
+    <form action="/addStation" method="POST">
+        <label>Station Name:</label><br>
+        <input type="text" name="station_name" required><br><br>
+
+        <label>Location:</label><br>
+        <input type="text" name="location" required><br><br>
+
+        <label>Total Ports:</label><br>
+        <input type="number" name="total_ports" required><br><br>
+
+        <button type="submit">Add Station</button>
+        <a href="/dashboard">Cancel</a>
+    </form>
+</body>
+</html>

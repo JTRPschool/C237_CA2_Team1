@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Book Charging Session</title>
+</head>
+<body>
+    <h2>Book Charging Session</h2>
+    <form action="/bookCharging" method="POST">
+        <label>Select Vehicle:</label><br>
+        <select name="vehicle_id" required>
+            <% vehicles.forEach(function(vehicle) { %>
+                <option value="<%= vehicle.id %>"><%= vehicle.model %></option>
+            <% }); %>
+        </select><br><br>
+
+        <label>Session Date:</label><br>
+        <input type="date" name="session_date" required><br><br>
+
+        <label>Time Slot:</label><br>
+        <input type="text" name="time_slot" placeholder="e.g., 18:00 - 20:00" required><br><br>
+
+        <button type="submit">Book Session</button>
+        <a href="/dashboard">Cancel</a>
+    </form>
+</body>
+</html>

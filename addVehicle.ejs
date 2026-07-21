@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Add Vehicle</title>
+</head>
+<body>
+    <h2>Add New EV Vehicle</h2>
+    <form action="/addVehicle" method="POST">
+        <label>Vehicle Model:</label><br>
+        <input type="text" name="model" required><br><br>
+
+        <label>Battery Capacity (kWh):</label><br>
+        <input type="number" name="battery_capacity" required><br><br>
+
+        <button type="submit">Add Vehicle</button>
+        <a href="/dashboard">Cancel</a>
+    </form>
+</body>
+</html>
