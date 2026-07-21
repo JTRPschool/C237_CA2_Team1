@@ -19,21 +19,21 @@ const upload = multer({ storage: storage });
 
 // Database connection
 // For local development, uncomment the localhost block and comment out the Azure block
-const connection = mysql.createConnection({
-    host: 'localhost',
-    user: 'root',
-    password: '',
-    database: 'evdb'
-});
-
-// For deployment, use Azure MySQL credentials below
 // const connection = mysql.createConnection({
-//     host: '<provided by lecturer>.mysql.database.azure.com',
-//     user: '<provided by lecturer>',
-//     password: '<provided by lecturer>',
-//     database: '<team database name>',
-//     ssl: { rejectUnauthorized: false }
+//     host: 'localhost',
+//     user: 'root',
+//     password: '',
+//     database: 'evdb'
 // });
+
+//For deployment, use Azure MySQL credentials below
+const connection = mysql.createConnection({
+    host: 'c237-adib-mysql.mysql.database.azure.com',
+    user: 'c237_019',
+    password: 'c237019@2026!',
+    database: 'c237_019_team1_evdb',
+    ssl: { rejectUnauthorized: false }
+});
 
 connection.connect((err) => {
     if (err) {
@@ -492,58 +492,64 @@ app.get('/deleteSession/:id', checkAuthenticated, (req, res) => {
 // ============================================================
 
 app.get('/searchVehicles', checkAuthenticated, (req, res) => {
-    const { search, batteryFilter, sort } = req.query;
+    // Get the search inputs from the URL. If empty, use default values.
+    let search = req.query.search;
+    let batteryFilter = req.query.batteryFilter;
+    let sort = req.query.sort;
 
-    // Build dynamic SQL based on which filters are provided
-    let sql = `SELECT vehicles.*, users.username
-               FROM vehicles
-               JOIN users ON vehicles.userId = users.userId
-               WHERE 1=1`;
-    const params = [];
+    if (!search) search = '';
+    if (!batteryFilter) batteryFilter = '';
+    if (!sort) sort = '';
 
-    // Regular users only see their own vehicles; admins see all
-    if (req.session.user.role !== 'admin') {
-        sql += ' AND vehicles.userId = ?';
+    // Start building the SQL query
+    let sql = 'SELECT vehicles.*, users.username FROM vehicles JOIN users ON vehicles.userId = users.userId';
+    let params = [];
+
+    // Normal users can only see their own vehicles. Admins can see all.
+    if (req.session.user.role === 'admin') {
+        sql = sql + ' WHERE (vehicles.model LIKE ? OR vehicles.plateNumber LIKE ?)';
+        params.push('%' + search + '%');
+        params.push('%' + search + '%');
+    } else {
+        sql = sql + ' WHERE (vehicles.model LIKE ? OR vehicles.plateNumber LIKE ?) AND vehicles.userId = ?';
+        params.push('%' + search + '%');
+        params.push('%' + search + '%');
         params.push(req.session.user.userId);
     }
 
-    // Keyword search on model or plate
-    if (search && search.trim() !== '') {
-        sql += ' AND (vehicles.model LIKE ? OR vehicles.plateNumber LIKE ?)';
-        params.push('%' + search + '%');
-        params.push('%' + search + '%');
-    }
-
-    // Battery health filter
+    // Filter by battery health if the user selected one
     if (batteryFilter === 'high') {
-        sql += ' AND vehicles.batteryHealth >= 90';
-    } else if (batteryFilter === 'medium') {
-        sql += ' AND vehicles.batteryHealth >= 80 AND vehicles.batteryHealth < 90';
-    } else if (batteryFilter === 'low') {
-        sql += ' AND vehicles.batteryHealth < 80';
+        sql = sql + ' AND vehicles.batteryHealth >= 90';
+    }
+    if (batteryFilter === 'medium') {
+        sql = sql + ' AND vehicles.batteryHealth >= 80 AND vehicles.batteryHealth < 90';
+    }
+    if (batteryFilter === 'low') {
+        sql = sql + ' AND vehicles.batteryHealth < 80';
     }
 
-    // Sorting
+    // Sort the results based on what the user selected
     if (sort === 'healthDesc') {
-        sql += ' ORDER BY vehicles.batteryHealth DESC';
+        sql = sql + ' ORDER BY vehicles.batteryHealth DESC';
     } else if (sort === 'healthAsc') {
-        sql += ' ORDER BY vehicles.batteryHealth ASC';
+        sql = sql + ' ORDER BY vehicles.batteryHealth ASC';
     } else if (sort === 'mileageDesc') {
-        sql += ' ORDER BY vehicles.mileage DESC';
+        sql = sql + ' ORDER BY vehicles.mileage DESC';
     } else if (sort === 'mileageAsc') {
-        sql += ' ORDER BY vehicles.mileage ASC';
+        sql = sql + ' ORDER BY vehicles.mileage ASC';
     } else {
-        sql += ' ORDER BY vehicles.model ASC';
+        sql = sql + ' ORDER BY vehicles.model ASC';
     }
 
+    // Run the query and show the results page
     connection.query(sql, params, (error, results) => {
         if (error) throw error;
         res.render('searchVehicles', {
             user: req.session.user,
             vehicles: results,
-            search: search || '',
-            batteryFilter: batteryFilter || '',
-            sort: sort || ''
+            search: search,
+            batteryFilter: batteryFilter,
+            sort: sort
         });
     });
 });
