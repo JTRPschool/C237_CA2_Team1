@@ -19,21 +19,21 @@ const upload = multer({ storage: storage });
 
 // Database connection
 // For local development, uncomment the localhost block and comment out the Azure block
-const connection = mysql.createConnection({
-    host: 'localhost',
-    user: 'root',
-    password: '',
-    database: 'evdb'
-});
-
-// For deployment, use Azure MySQL credentials below
 // const connection = mysql.createConnection({
-//     host: '<provided by lecturer>.mysql.database.azure.com',
-//     user: '<provided by lecturer>',
-//     password: '<provided by lecturer>',
-//     database: '<team database name>',
-//     ssl: { rejectUnauthorized: false }
+//     host: 'localhost',
+//     user: 'root',
+//     password: '',
+//     database: 'evdb'
 // });
+
+//For deployment, use Azure MySQL credentials below
+const connection = mysql.createConnection({
+    host: 'c237-adib-mysql.mysql.database.azure.com',
+    user: 'c237_019',
+    password: 'c237019@2026!',
+    database: 'c237_019_team1_evdb',
+    ssl: { rejectUnauthorized: false }
+});
 
 connection.connect((err) => {
     if (err) {
