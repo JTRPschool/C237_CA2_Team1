@@ -408,82 +408,74 @@ app.post('/rescheduleCharging/:id', (req, res) => {
 });
 
 // ============================================================
-// STUDENT E (Cayden) - Deleting (DELETE)
+// STUDENT E (Cayden) - Deleting (with confirmation pages)
 // ============================================================
 
 app.get('/deleteVehicle/:id', checkAuthenticated, (req, res) => {
-    const vehicleId = req.params.id;
-
-    // Ownership check before deletion
-    connection.query('SELECT * FROM vehicles WHERE vehicleId = ?', [vehicleId], (error, results) => {
+    connection.query('SELECT * FROM vehicles WHERE vehicleId = ?', [req.params.id], (error, results) => {
         if (error) throw error;
-        if (results.length === 0) {
-            return res.status(404).send('Vehicle not found');
-        }
+        if (results.length === 0) return res.status(404).send('Vehicle not found');
+        if (req.session.user.role !== 'admin' && results[0].userId !== req.session.user.userId) return res.redirect('/dashboard');
+        res.render('deleteVehicle', { user: req.session.user, vehicle: results[0] });
+    });
+});
 
-        if (req.session.user.role !== 'admin' && results[0].userId !== req.session.user.userId) {
-            req.flash('error', 'Access denied');
-            return res.redirect('/dashboard');
-        }
-
-        // Delete related records first (battery logs, charging sessions) then vehicle
-        connection.query('DELETE FROM batteryLogs WHERE vehicleId = ?', [vehicleId], (error) => {
-            if (error) throw error;
-            connection.query('DELETE FROM chargingSessions WHERE vehicleId = ?', [vehicleId], (error) => {
-                if (error) throw error;
-                connection.query('DELETE FROM vehicles WHERE vehicleId = ?', [vehicleId], (error) => {
-                    if (error) {
-                        console.error("Error deleting vehicle:", error);
-                        res.status(500).send('Error deleting vehicle');
-                    } else {
-                        res.redirect('/dashboard');
-                    }
-                });
+app.post('/deleteVehicle/:id', checkAuthenticated, (req, res) => {
+    const vehicleId = req.params.id;
+    // Delete related records first (battery logs, charging sessions) then the vehicle
+    connection.query('DELETE FROM batteryLogs WHERE vehicleId = ?', [vehicleId], (err) => {
+        if (err) throw err;
+        connection.query('DELETE FROM chargingSessions WHERE vehicleId = ?', [vehicleId], (err) => {
+            if (err) throw err;
+            connection.query('DELETE FROM vehicles WHERE vehicleId = ?', [vehicleId], (err) => {
+                if (err) return res.status(500).send('Error deleting vehicle');
+                if (req.session.user && req.session.user.role === 'admin') {
+                    res.redirect('/adminDashboard');
+                } else {
+                    res.redirect('/dashboard');
+                }
             });
         });
     });
 });
 
 app.get('/deleteLog/:id', checkAuthenticated, (req, res) => {
-    const logId = req.params.id;
-
-    connection.query('SELECT * FROM batteryLogs WHERE logId = ?', [logId], (error, results) => {
+    connection.query('SELECT * FROM batteryLogs WHERE logId = ?', [req.params.id], (error, results) => {
         if (error) throw error;
         if (results.length === 0) return res.status(404).send('Log not found');
+        res.render('deleteLog', { user: req.session.user, log: results[0] });
+    });
+});
 
+app.post('/deleteLog/:id', checkAuthenticated, (req, res) => {
+    const logId = req.params.id;
+    connection.query('SELECT vehicleId FROM batteryLogs WHERE logId = ?', [logId], (err, results) => {
+        if (err || results.length === 0) return res.redirect('/dashboard');
         const vehicleId = results[0].vehicleId;
-
         connection.query('DELETE FROM batteryLogs WHERE logId = ?', [logId], (error) => {
-            if (error) {
-                console.error("Error deleting log:", error);
-                res.status(500).send('Error deleting log');
-            } else {
-                res.redirect('/vehicle/' + vehicleId);
-            }
+            if (error) return res.status(500).send('Error deleting log');
+            res.redirect('/vehicle/' + vehicleId);
         });
     });
 });
 
 app.get('/deleteSession/:id', checkAuthenticated, (req, res) => {
-    const sessionId = req.params.id;
-
-    connection.query('SELECT * FROM chargingSessions WHERE sessionId = ?', [sessionId], (error, results) => {
+    connection.query('SELECT * FROM chargingSessions WHERE sessionId = ?', [req.params.id], (error, results) => {
         if (error) throw error;
         if (results.length === 0) return res.status(404).send('Session not found');
+        if (req.session.user.role !== 'admin' && results[0].userId !== req.session.user.userId) return res.redirect('/dashboard');
+        res.render('deleteSession', { user: req.session.user, session: results[0] });
+    });
+});
 
-        if (req.session.user.role !== 'admin' && results[0].userId !== req.session.user.userId) {
-            req.flash('error', 'Access denied');
-            return res.redirect('/dashboard');
+app.post('/deleteSession/:id', checkAuthenticated, (req, res) => {
+    connection.query('DELETE FROM chargingSessions WHERE sessionId = ?', [req.params.id], (error) => {
+        if (error) return res.status(500).send('Error deleting session');
+        if (req.session.user && req.session.user.role === 'admin') {
+            res.redirect('/adminDashboard');
+        } else {
+            res.redirect('/dashboard');
         }
-
-        connection.query('DELETE FROM chargingSessions WHERE sessionId = ?', [sessionId], (error) => {
-            if (error) {
-                console.error("Error deleting session:", error);
-                res.status(500).send('Error deleting session');
-            } else {
-                res.redirect('/dashboard');
-            }
-        });
     });
 });
 
