@@ -1,3 +1,7 @@
+<!-- ======================================================== -->
+<!-- [DESIGN & AESTHETIC] - Booking Container Card Layout     -->
+<!-- [FUNCTIONAL LOGIC] - Handles Vehicle/Station selection   -->
+<!-- ======================================================== -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,67 +9,69 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-  <title>EV App</title>
+  <title>EV App - Book Charging</title>
 </head>
-<body>
-  <nav class="navbar navbar-expand-sm bg-dark navbar-dark">
+<body class="bg-light">
+  <!-- [AESTHETIC] Top Navigation Bar -->
+  <nav class="navbar navbar-expand-sm bg-dark navbar-dark shadow-sm px-4">
     <div class="container-fluid">
-      <a class="navbar-brand" href="/">EV App</a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#collapsibleNavbar">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      <div class="collapse navbar-collapse" id="collapsibleNavbar">
-        <ul class="navbar-nav">
-          <li class="nav-item">
-            <a class="nav-link" href="/dashboard">Dashboard</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="/logout">Logout</a>
-          </li>
-        </ul>
-      </div>
+      <a class="navbar-brand fw-bold" href="/">⚡ EV App</a>
+      <ul class="navbar-nav ms-auto">
+        <li class="nav-item"><a class="nav-link" href="/dashboard">Dashboard</a></li>
+        <li class="nav-item"><a class="nav-link text-danger" href="/logout">Logout</a></li>
+      </ul>
     </div>
   </nav>
 
-  <div class="container mt-4">
-    <h2 class="text-center mb-4">Book a Charging Session</h2>
+  <!-- [DESIGN] Centered Form Container -->
+  <div class="container d-flex justify-content-center align-items-center mt-5 mb-5">
+    <div class="card shadow-sm border-0 p-4 bg-white rounded-4" style="max-width: 500px; width: 100%;">
+      <h3 class="text-center mb-4 text-dark fw-bold">Book Charging Session</h3>
 
-    <% if (vehicles.length === 0) { %>
-      <p class="text-center">You need to <a href="/addVehicle">add a vehicle</a> first before booking a session.</p>
-    <% } else if (stations.length === 0) { %>
-      <p class="text-center">No charging stations are currently available.</p>
-    <% } else { %>
-      <form action="/bookCharging" method="POST" class="mx-auto" style="max-width: 500px;">
-
-        <div class="mb-3">
-          <label for="vehicleId" class="form-label">Select Vehicle</label>
-          <select id="vehicleId" name="vehicleId" class="form-control" required>
-            <% for(let i = 0; i < vehicles.length; i++) { %>
-              <option value="<%= vehicles[i].vehicleId %>"><%= vehicles[i].model %> (<%= vehicles[i].plateNumber %>)</option>
-            <% } %>
-          </select>
+      <!-- [FUNCTION] Conditional Rendering: Check if Vehicles or Stations exist -->
+      <% if (vehicles.length === 0) { %>
+        <div class="text-center">
+          <p class="text-muted">You need to add a vehicle before you can book a charging slot.</p>
+          <a href="/addVehicle" class="btn btn-dark rounded-3 w-100 py-2">Add Vehicle Now</a>
         </div>
-
-        <div class="mb-3">
-          <label for="stationId" class="form-label">Select Station</label>
-          <select id="stationId" name="stationId" class="form-control" required>
-            <% for(let i = 0; i < stations.length; i++) { %>
-              <option value="<%= stations[i].stationId %>"><%= stations[i].stationName %> - <%= stations[i].location %></option>
-            <% } %>
-          </select>
+      <% } else if (stations.length === 0) { %>
+        <div class="text-center">
+          <p class="text-muted">No charging stations are currently available.</p>
+          <a href="/dashboard" class="btn btn-outline-secondary rounded-3 w-100 py-2">Back to Dashboard</a>
         </div>
+      <% } else { %>
+        <!-- [FUNCTION] POST Form submission to /bookCharging -->
+        <form action="/bookCharging" method="POST">
+          <div class="mb-3">
+            <label for="vehicleId" class="form-label text-muted small fw-semibold">Select Vehicle</label>
+            <select id="vehicleId" name="vehicleId" class="form-select rounded-3 py-2" required>
+              <% for(let i = 0; i < vehicles.length; i++) { %>
+                <option value="<%= vehicles[i].vehicleId %>"><%= vehicles[i].model %> (<%= vehicles[i].plateNumber %>)</option>
+              <% } %>
+            </select>
+          </div>
 
-        <div class="mb-4">
-          <label for="scheduledDate" class="form-label">Scheduled Date & Time</label>
-          <input type="datetime-local" class="form-control" id="scheduledDate" name="scheduledDate" required>
-        </div>
+          <div class="mb-3">
+            <label for="stationId" class="form-label text-muted small fw-semibold">Select Station</label>
+            <select id="stationId" name="stationId" class="form-select rounded-3 py-2" required>
+              <% for(let i = 0; i < stations.length; i++) { %>
+                <option value="<%= stations[i].stationId %>"><%= stations[i].stationName %> - <%= stations[i].location %></option>
+              <% } %>
+            </select>
+          </div>
 
-        <div class="d-grid">
-          <button type="submit" class="btn btn-primary">Book Session</button>
-        </div>
+          <div class="mb-4">
+            <label for="scheduledDate" class="form-label text-muted small fw-semibold">Scheduled Date & Time</label>
+            <input type="datetime-local" class="form-control rounded-3 py-2" id="scheduledDate" name="scheduledDate" required>
+          </div>
 
-      </form>
-    <% } %>
+          <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-dark rounded-3 py-2 fw-semibold">Confirm Booking</button>
+            <a href="/dashboard" class="btn btn-outline-secondary rounded-3 py-2">Cancel</a>
+          </div>
+        </form>
+      <% } %>
+    </div>
   </div>
 </body>
 </html>

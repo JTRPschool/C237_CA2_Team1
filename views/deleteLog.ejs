@@ -1,0 +1,28 @@
+<!-- ======================================================== -->
+<!-- [DESIGN & AESTHETIC] - Warning Modal Box Layout          -->
+<!-- [FUNCTIONAL LOGIC] - Submits POST request to remove log  -->
+<!-- ======================================================== -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <title>EV App - Delete Log</title>
+</head>
+<body class="bg-light">
+  <div class="container d-flex justify-content-center align-items-center vh-100">
+    <div class="card shadow-sm border-0 p-4 text-center bg-white rounded-4" style="max-width: 420px; width: 100%;">
+      <div class="mb-3 text-danger fs-1">🗑️</div>
+      <h3 class="fw-bold mb-2 text-dark">Delete Battery Log</h3>
+      <p class="text-muted small mb-4">Are you sure you want to delete this specific battery log record?</p>
+      
+      <form action="/deleteLog/<%= log.logId %>" method="POST">
+        <div class="d-grid gap-2">
+          <button type="submit" class="btn btn-danger rounded-3 py-2 fw-semibold">Yes, Delete</button>
+          <a href="/vehicle/<%= log.vehicleId %>" class="btn btn-outline-secondary rounded-3 py-2">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

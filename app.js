@@ -1,3 +1,6 @@
+// ============================================================
+// [DESIGN & SETUP] - Dependencies & Express Application Init
+// ============================================================
 const express = require('express');
 const mysql = require('mysql2');
 const session = require('express-session');
@@ -5,28 +8,22 @@ const flash = require('connect-flash');
 const multer = require('multer');
 const app = express();
 
-// Set up multer for file uploads (vehicle images)
+// ============================================================
+// [FUNCTIONAL LOGIC] - Multer Storage Configuration (Images)
+// ============================================================
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, 'public/images'); // Directory to save uploaded files
+        cb(null, 'public/images'); 
     },
     filename: (req, file, cb) => {
-        cb(null, file.originalname);
+        cb(null, file.originalname); 
     }
 });
-
 const upload = multer({ storage: storage });
 
-// Database connection
-// For local development, uncomment the localhost block and comment out the Azure block
-// const connection = mysql.createConnection({
-//     host: 'localhost',
-//     user: 'root',
-//     password: '',
-//     database: 'evdb'
-// });
-
-//For deployment, use Azure MySQL credentials below
+// ============================================================
+// [FUNCTIONAL LOGIC] - Database Connection (Azure MySQL)
+// ============================================================
 const connection = mysql.createConnection({
     host: 'c237-adib-mysql.mysql.database.azure.com',
     user: 'c237_019',
@@ -43,16 +40,13 @@ connection.connect((err) => {
     console.log('Connected to MySQL database');
 });
 
-// Set up view engine
+// ============================================================
+// [DESIGN & FUNCTION] - View Engine & Middleware Setup
+// ============================================================
 app.set('view engine', 'ejs');
-// enable static files
 app.use(express.static('public'));
-// enable form processing
-app.use(express.urlencoded({
-    extended: false
-}));
+app.use(express.urlencoded({ extended: false }));
 
-// Session middleware
 app.use(session({
     secret: 'secret',
     resave: false,
@@ -62,7 +56,7 @@ app.use(session({
 
 app.use(flash());
 
-// Middleware to check if user is logged in
+// Authentication Middleware Check[cite: 1]
 const checkAuthenticated = (req, res, next) => {
     if (req.session.user) {
         return next();
@@ -72,9 +66,9 @@ const checkAuthenticated = (req, res, next) => {
     }
 };
 
-// Middleware to check if user is admin
+// Admin Role Middleware Check[cite: 1]
 const checkAdmin = (req, res, next) => {
-    if (req.session.user.role === 'admin') {
+    if (req.session.user && req.session.user.role === 'admin') {
         return next();
     } else {
         req.flash('error', 'Access denied');
@@ -82,16 +76,14 @@ const checkAdmin = (req, res, next) => {
     }
 };
 
-// Middleware for form validation
+// Registration Validation Middleware[cite: 1]
 const validateRegistration = (req, res, next) => {
     const { username, email, password, contact, role } = req.body;
-
     if (!username || !email || !password || !contact || !role) {
         return res.status(400).send('All fields are required.');
     }
-
     if (password.length < 6) {
-        req.flash('error', 'Password should be at least 6 or more characters long');
+        req.flash('error', 'Password should be at least 6 characters');
         req.flash('formData', req.body);
         return res.redirect('/register');
     }
@@ -99,12 +91,9 @@ const validateRegistration = (req, res, next) => {
 };
 
 // ============================================================
-// STUDENT A (Nasrin) - Registration, Login, Access Control
+// [FUNCTIONAL ROUTE] - STUDENT A (Nasrin): Auth & Control[cite: 1]
 // ============================================================
-
-app.get('/', (req, res) => {
-    res.render('index', { user: req.session.user });
-});
+app.get('/', (req, res) => res.render('index', { user: req.session.user }));
 
 app.get('/register', (req, res) => {
     res.render('register', { messages: req.flash('error'), formData: req.flash('formData')[0] });
@@ -112,13 +101,9 @@ app.get('/register', (req, res) => {
 
 app.post('/register', validateRegistration, (req, res) => {
     const { username, email, password, contact, role } = req.body;
-
     const sql = 'INSERT INTO users (username, email, password, contact, role) VALUES (?, ?, SHA1(?), ?, ?)';
-    connection.query(sql, [username, email, password, contact, role], (err, result) => {
-        if (err) {
-            throw err;
-        }
-        console.log(result);
+    connection.query(sql, [username, email, password, contact, role], (err) => {
+        if (err) throw err;
         req.flash('success', 'Registration successful! Please log in.');
         res.redirect('/login');
     });
@@ -130,25 +115,18 @@ app.get('/login', (req, res) => {
 
 app.post('/login', (req, res) => {
     const { email, password } = req.body;
-
     if (!email || !password) {
         req.flash('error', 'All fields are required.');
         return res.redirect('/login');
     }
-
     const sql = 'SELECT * FROM users WHERE email = ? AND password = SHA1(?)';
     connection.query(sql, [email, password], (err, results) => {
-        if (err) {
-            throw err;
-        }
-
+        if (err) throw err;
         if (results.length > 0) {
             req.session.user = results[0];
             req.flash('success', 'Login successful!');
-            if (req.session.user.role == 'user')
-                res.redirect('/dashboard');
-            else
-                res.redirect('/adminDashboard');
+            if (req.session.user.role == 'user') res.redirect('/dashboard');
+            else res.redirect('/adminDashboard');
         } else {
             req.flash('error', 'Invalid email or password.');
             res.redirect('/login');
@@ -162,82 +140,54 @@ app.get('/logout', (req, res) => {
 });
 
 // ============================================================
-// STUDENT C (Taufik) - Dashboards & Viewing
+// [FUNCTIONAL ROUTE] - STUDENT C (Taufik): Dashboards & View[cite: 1]
 // ============================================================
-
-// User dashboard: shows their own vehicles + upcoming charging sessions
 app.get('/dashboard', checkAuthenticated, (req, res) => {
     const userId = req.session.user.userId;
-
-    const vehiclesSql = 'SELECT * FROM vehicles WHERE userId = ?';
-    connection.query(vehiclesSql, [userId], (error, vehicles) => {
+    connection.query('SELECT * FROM vehicles WHERE userId = ?', [userId], (error, vehicles) => {
         if (error) throw error;
-
         const sessionsSql = `SELECT chargingSessions.*, vehicles.model, chargingStations.stationName
-                             FROM chargingSessions
-                             JOIN vehicles ON chargingSessions.vehicleId = vehicles.vehicleId
+                             FROM chargingSessions JOIN vehicles ON chargingSessions.vehicleId = vehicles.vehicleId
                              JOIN chargingStations ON chargingSessions.stationId = chargingStations.stationId
                              WHERE chargingSessions.userId = ?`;
         connection.query(sessionsSql, [userId], (error, sessions) => {
             if (error) throw error;
-            res.render('dashboard', { user: req.session.user, vehicles: vehicles, sessions: sessions });
+            res.render('dashboard', { user: req.session.user, vehicles, sessions });
         });
     });
 });
 
-// Admin dashboard: shows all vehicles, all stations, and simple fleet analytics
 app.get('/adminDashboard', checkAuthenticated, checkAdmin, (req, res) => {
-    const vehiclesSql = `SELECT vehicles.*, users.username
-                         FROM vehicles
-                         JOIN users ON vehicles.userId = users.userId`;
+    const vehiclesSql = `SELECT vehicles.*, users.username FROM vehicles JOIN users ON vehicles.userId = users.userId`;
     connection.query(vehiclesSql, (error, vehicles) => {
         if (error) throw error;
-
         connection.query('SELECT * FROM chargingStations', (error, stations) => {
             if (error) throw error;
-
-            // Simple analytics: total vehicles and average battery health
             const totalVehicles = vehicles.length;
             let avgHealth = 0;
             if (totalVehicles > 0) {
                 let sum = 0;
-                for (let i = 0; i < vehicles.length; i++) {
-                    sum += vehicles[i].batteryHealth;
-                }
+                vehicles.forEach(v => sum += v.batteryHealth);
                 avgHealth = (sum / totalVehicles).toFixed(1);
             }
-
-            res.render('adminDashboard', {
-                user: req.session.user,
-                vehicles: vehicles,
-                stations: stations,
-                totalVehicles: totalVehicles,
-                avgHealth: avgHealth
-            });
+            res.render('adminDashboard', { user: req.session.user, vehicles, stations, totalVehicles, avgHealth });
         });
     });
 });
 
-// Vehicle detail page with battery history
 app.get('/vehicle/:id', checkAuthenticated, (req, res) => {
     const vehicleId = req.params.id;
-
     connection.query('SELECT * FROM vehicles WHERE vehicleId = ?', [vehicleId], (error, results) => {
         if (error) throw error;
-
         if (results.length > 0) {
             const vehicle = results[0];
-
-            // Ownership check: user can only view their own vehicles, admins can view all
             if (req.session.user.role !== 'admin' && vehicle.userId !== req.session.user.userId) {
                 req.flash('error', 'Access denied');
                 return res.redirect('/dashboard');
             }
-
-            const logsSql = 'SELECT * FROM batteryLogs WHERE vehicleId = ? ORDER BY logDate ASC';
-            connection.query(logsSql, [vehicleId], (error, logs) => {
+            connection.query('SELECT * FROM batteryLogs WHERE vehicleId = ? ORDER BY logDate ASC', [vehicleId], (error, logs) => {
                 if (error) throw error;
-                res.render('vehicle', { user: req.session.user, vehicle: vehicle, logs: logs });
+                res.render('vehicle', { user: req.session.user, vehicle, logs });
             });
         } else {
             res.status(404).send('Vehicle not found');
@@ -246,313 +196,212 @@ app.get('/vehicle/:id', checkAuthenticated, (req, res) => {
 });
 
 // ============================================================
-// STUDENT B (Cayden) - Adding Information (INSERT)
+// [FUNCTIONAL ROUTE] - STUDENT B (Cayden): Add Information[cite: 1]
 // ============================================================
 
-// Add vehicle (user)
-app.get('/addVehicle', checkAuthenticated, (req, res) => {
-    res.render('addVehicle', { user: req.session.user });
-});
+// 1. Static routes MUST come before any dynamic /:id parameters to prevent routing collision
+app.get('/addVehicle', checkAuthenticated, (req, res) => res.render('addVehicle', { user: req.session.user }));
 
-app.post('/addVehicle', upload.single('image'), (req, res) => {
+app.post('/addVehicle', checkAuthenticated, upload.single('image'), (req, res) => {
     const { model, plateNumber, batteryHealth, mileage } = req.body;
     const userId = req.session.user.userId;
-    let image;
-    if (req.file) {
-        image = req.file.filename;
-    } else {
-        image = null;
-    }
-
+    let image = req.file ? req.file.filename : null;
     const sql = 'INSERT INTO vehicles (userId, model, plateNumber, batteryHealth, mileage, image) VALUES (?, ?, ?, ?, ?, ?)';
-    connection.query(sql, [userId, model, plateNumber, batteryHealth, mileage, image], (error, results) => {
-        if (error) {
-            console.error("Error adding vehicle:", error);
-            res.status(500).send('Error adding vehicle');
-        } else {
-            res.redirect('/dashboard');
-        }
+    connection.query(sql, [userId, model, plateNumber, batteryHealth, mileage, image], (error) => {
+        if (error) return res.status(500).send('Error adding vehicle');
+        res.redirect('/dashboard');
     });
 });
 
-// Add battery log entry
-app.get('/addBatteryLog/:vehicleId', checkAuthenticated, (req, res) => {
-    const vehicleId = req.params.vehicleId;
-    connection.query('SELECT * FROM vehicles WHERE vehicleId = ?', [vehicleId], (error, results) => {
-        if (error) throw error;
-        if (results.length > 0) {
-            res.render('addBatteryLog', { user: req.session.user, vehicle: results[0] });
-        } else {
-            res.status(404).send('Vehicle not found');
-        }
-    });
-});
+app.get('/addStation', checkAuthenticated, checkAdmin, (req, res) => res.render('addStation', { user: req.session.user }));
 
-app.post('/addBatteryLog/:vehicleId', (req, res) => {
-    const vehicleId = req.params.vehicleId;
-    const { batteryHealth, mileage, logDate } = req.body;
-
-    const sql = 'INSERT INTO batteryLogs (vehicleId, batteryHealth, mileage, logDate) VALUES (?, ?, ?, ?)';
-    connection.query(sql, [vehicleId, batteryHealth, mileage, logDate], (error, results) => {
-        if (error) {
-            console.error("Error adding battery log:", error);
-            res.status(500).send('Error adding battery log');
-        } else {
-            // Also update the current battery health on the vehicle record
-            const updateSql = 'UPDATE vehicles SET batteryHealth = ?, mileage = ? WHERE vehicleId = ?';
-            connection.query(updateSql, [batteryHealth, mileage, vehicleId], (error) => {
-                if (error) throw error;
-                res.redirect('/vehicle/' + vehicleId);
-            });
-        }
-    });
-});
-
-// Add charging station (admin only)
-app.get('/addStation', checkAuthenticated, checkAdmin, (req, res) => {
-    res.render('addStation', { user: req.session.user });
-});
-
-app.post('/addStation', (req, res) => {
+app.post('/addStation', checkAuthenticated, checkAdmin, (req, res) => {
     const { stationName, location, available } = req.body;
-
-    const sql = 'INSERT INTO chargingStations (stationName, location, available) VALUES (?, ?, ?)';
-    connection.query(sql, [stationName, location, available], (error, results) => {
-        if (error) {
-            console.error("Error adding station:", error);
-            res.status(500).send('Error adding station');
-        } else {
-            res.redirect('/adminDashboard');
-        }
+    connection.query('INSERT INTO chargingStations (stationName, location, available) VALUES (?, ?, ?)', [stationName, location, available], (error) => {
+        if (error) return res.status(500).send('Error adding station');
+        res.redirect('/adminDashboard');
     });
 });
 
-// Book a charging session (user)
 app.get('/bookCharging', checkAuthenticated, (req, res) => {
     const userId = req.session.user.userId;
     connection.query('SELECT * FROM vehicles WHERE userId = ?', [userId], (error, vehicles) => {
         if (error) throw error;
-        connection.query('SELECT * FROM chargingStations WHERE available = ?', ['yes'], (error, stations) => {
+        connection.query('SELECT * FROM chargingStations WHERE available = "yes"', (error, stations) => {
             if (error) throw error;
-            res.render('bookCharging', { user: req.session.user, vehicles: vehicles, stations: stations });
+            res.render('bookCharging', { user: req.session.user, vehicles, stations });
         });
     });
 });
 
-app.post('/bookCharging', (req, res) => {
+app.post('/bookCharging', checkAuthenticated, (req, res) => {
     const { vehicleId, stationId, scheduledDate } = req.body;
     const userId = req.session.user.userId;
+    connection.query('INSERT INTO chargingSessions (userId, vehicleId, stationId, scheduledDate, status) VALUES (?, ?, ?, ?, "scheduled")', 
+    [userId, vehicleId, stationId, scheduledDate], (error) => {
+        if (error) return res.status(500).send('Error booking session');
+        res.redirect('/dashboard');
+    });
+});
 
-    const sql = 'INSERT INTO chargingSessions (userId, vehicleId, stationId, scheduledDate, status) VALUES (?, ?, ?, ?, ?)';
-    connection.query(sql, [userId, vehicleId, stationId, scheduledDate, 'scheduled'], (error, results) => {
-        if (error) {
-            console.error("Error booking charging:", error);
-            res.status(500).send('Error booking charging');
-        } else {
-            res.redirect('/dashboard');
-        }
+// 2. Dynamic parameter routes with colons must come AFTER static routes
+app.get('/addBatteryLog/:vehicleId', checkAuthenticated, (req, res) => {
+    connection.query('SELECT * FROM vehicles WHERE vehicleId = ?', [req.params.vehicleId], (error, results) => {
+        if (error) throw error;
+        if (results.length > 0) res.render('addBatteryLog', { user: req.session.user, vehicle: results[0] });
+        else res.status(404).send('Vehicle not found');
+    });
+});
+
+app.post('/addBatteryLog/:vehicleId', checkAuthenticated, (req, res) => {
+    const vehicleId = req.params.vehicleId;
+    const { batteryHealth, mileage, logDate } = req.body;
+    const sql = 'INSERT INTO batteryLogs (vehicleId, batteryHealth, mileage, logDate) VALUES (?, ?, ?, ?)';
+    connection.query(sql, [vehicleId, batteryHealth, mileage, logDate], (error) => {
+        if (error) return res.status(500).send('Error adding log');
+        connection.query('UPDATE vehicles SET batteryHealth = ?, mileage = ? WHERE vehicleId = ?', [batteryHealth, mileage, vehicleId], (err) => {
+            if (err) throw err;
+            res.redirect('/vehicle/' + vehicleId);
+        });
     });
 });
 
 // ============================================================
-// STUDENT D (Ethan) - Update / Reschedule (UPDATE)
+// [FUNCTIONAL ROUTE] - STUDENT D (Ethan): Update / Reschedule[cite: 1]
 // ============================================================
-
 app.get('/rescheduleCharging/:id', checkAuthenticated, (req, res) => {
-    const sessionId = req.params.id;
-
-    const sql = `SELECT chargingSessions.*, vehicles.model, chargingStations.stationName
-                 FROM chargingSessions
+    const sql = `SELECT chargingSessions.*, vehicles.model, chargingStations.stationName FROM chargingSessions
                  JOIN vehicles ON chargingSessions.vehicleId = vehicles.vehicleId
                  JOIN chargingStations ON chargingSessions.stationId = chargingStations.stationId
                  WHERE chargingSessions.sessionId = ?`;
-    connection.query(sql, [sessionId], (error, results) => {
+    connection.query(sql, [req.params.id], (error, results) => {
         if (error) throw error;
-
         if (results.length > 0) {
-            const chargingSession = results[0];
-
-            // Ownership check: user can only reschedule their own bookings
-            if (req.session.user.role !== 'admin' && chargingSession.userId !== req.session.user.userId) {
-                req.flash('error', 'Access denied');
-                return res.redirect('/dashboard');
-            }
-
-            connection.query('SELECT * FROM chargingStations WHERE available = ?', ['yes'], (error, stations) => {
-                if (error) throw error;
-                res.render('rescheduleCharging', {
-                    user: req.session.user,
-                    chargingSession: chargingSession,
-                    stations: stations
-                });
+            if (req.session.user.role !== 'admin' && results[0].userId !== req.session.user.userId) return res.redirect('/dashboard');
+            connection.query('SELECT * FROM chargingStations WHERE available = "yes"', (err, stations) => {
+                if (err) throw err;
+                res.render('rescheduleCharging', { user: req.session.user, chargingSession: results[0], stations });
             });
-        } else {
-            res.status(404).send('Charging session not found');
-        }
+        } else res.status(404).send('Session not found');
     });
 });
 
-app.post('/rescheduleCharging/:id', (req, res) => {
-    const sessionId = req.params.id;
+app.post('/rescheduleCharging/:id', checkAuthenticated, (req, res) => {
     const { stationId, scheduledDate, status } = req.body;
-
-    const sql = 'UPDATE chargingSessions SET stationId = ?, scheduledDate = ?, status = ? WHERE sessionId = ?';
-    connection.query(sql, [stationId, scheduledDate, status, sessionId], (error, results) => {
-        if (error) {
-            console.error("Error rescheduling charging:", error);
-            res.status(500).send('Error rescheduling charging');
-        } else {
-            res.redirect('/dashboard');
-        }
+    connection.query('UPDATE chargingSessions SET stationId = ?, scheduledDate = ?, status = ? WHERE sessionId = ?', 
+    [stationId, scheduledDate, status, req.params.id], (error) => {
+        if (error) return res.status(500).send('Error rescheduling');
+        res.redirect('/dashboard');
     });
 });
 
 // ============================================================
-// STUDENT E (Cayden) - Deleting (DELETE)
+// [FUNCTIONAL ROUTE] - STUDENT E (Cayden): Deletion Logic[cite: 1]
 // ============================================================
-
 app.get('/deleteVehicle/:id', checkAuthenticated, (req, res) => {
-    const vehicleId = req.params.id;
-
-    // Ownership check before deletion
-    connection.query('SELECT * FROM vehicles WHERE vehicleId = ?', [vehicleId], (error, results) => {
+    connection.query('SELECT * FROM vehicles WHERE vehicleId = ?', [req.params.id], (error, results) => {
         if (error) throw error;
-        if (results.length === 0) {
-            return res.status(404).send('Vehicle not found');
-        }
+        if (results.length === 0) return res.status(404).send('Vehicle not found');
+        if (req.session.user.role !== 'admin' && results[0].userId !== req.session.user.userId) return res.redirect('/dashboard');
+        res.render('deleteVehicle', { user: req.session.user, vehicle: results[0] });
+    });
+});
 
-        if (req.session.user.role !== 'admin' && results[0].userId !== req.session.user.userId) {
-            req.flash('error', 'Access denied');
-            return res.redirect('/dashboard');
-        }
-
-        // Delete related records first (battery logs, charging sessions) then vehicle
-        connection.query('DELETE FROM batteryLogs WHERE vehicleId = ?', [vehicleId], (error) => {
-            if (error) throw error;
-            connection.query('DELETE FROM chargingSessions WHERE vehicleId = ?', [vehicleId], (error) => {
-                if (error) throw error;
-                connection.query('DELETE FROM vehicles WHERE vehicleId = ?', [vehicleId], (error) => {
-                    if (error) {
-                        console.error("Error deleting vehicle:", error);
-                        res.status(500).send('Error deleting vehicle');
-                    } else {
-                        res.redirect('/dashboard');
-                    }
-                });
+app.post('/deleteVehicle/:id', checkAuthenticated, (req, res) => {
+    const vehicleId = req.params.id;
+    connection.query('DELETE FROM batteryLogs WHERE vehicleId = ?', [vehicleId], (err) => {
+        if (err) throw err;
+        connection.query('DELETE FROM chargingSessions WHERE vehicleId = ?', [vehicleId], (err) => {
+            if (err) throw err;
+            connection.query('DELETE FROM vehicles WHERE vehicleId = ?', [vehicleId], (err) => {
+                if (err) return res.status(500).send('Error deleting vehicle');
+                if (req.session.user && req.session.user.role === 'admin') {
+                    res.redirect('/adminDashboard');
+                } else {
+                    res.redirect('/dashboard');
+                }
             });
         });
     });
 });
 
 app.get('/deleteLog/:id', checkAuthenticated, (req, res) => {
-    const logId = req.params.id;
-
-    connection.query('SELECT * FROM batteryLogs WHERE logId = ?', [logId], (error, results) => {
+    connection.query('SELECT * FROM batteryLogs WHERE logId = ?', [req.params.id], (error, results) => {
         if (error) throw error;
         if (results.length === 0) return res.status(404).send('Log not found');
+        res.render('deleteLog', { user: req.session.user, log: results[0] });
+    });
+});
 
+app.post('/deleteLog/:id', checkAuthenticated, (req, res) => {
+    const logId = req.params.id;
+    connection.query('SELECT vehicleId FROM batteryLogs WHERE logId = ?', [logId], (err, results) => {
+        if (err || results.length === 0) return res.redirect('/dashboard');
         const vehicleId = results[0].vehicleId;
-
         connection.query('DELETE FROM batteryLogs WHERE logId = ?', [logId], (error) => {
-            if (error) {
-                console.error("Error deleting log:", error);
-                res.status(500).send('Error deleting log');
-            } else {
-                res.redirect('/vehicle/' + vehicleId);
-            }
+            if (error) return res.status(500).send('Error deleting log');
+            res.redirect('/vehicle/' + vehicleId);
         });
     });
 });
 
 app.get('/deleteSession/:id', checkAuthenticated, (req, res) => {
-    const sessionId = req.params.id;
-
-    connection.query('SELECT * FROM chargingSessions WHERE sessionId = ?', [sessionId], (error, results) => {
+    connection.query('SELECT * FROM chargingSessions WHERE sessionId = ?', [req.params.id], (error, results) => {
         if (error) throw error;
         if (results.length === 0) return res.status(404).send('Session not found');
+        if (req.session.user.role !== 'admin' && results[0].userId !== req.session.user.userId) return res.redirect('/dashboard');
+        res.render('deleteSession', { user: req.session.user, session: results[0] });
+    });
+});
 
-        if (req.session.user.role !== 'admin' && results[0].userId !== req.session.user.userId) {
-            req.flash('error', 'Access denied');
-            return res.redirect('/dashboard');
+app.post('/deleteSession/:id', checkAuthenticated, (req, res) => {
+    connection.query('DELETE FROM chargingSessions WHERE sessionId = ?', [req.params.id], (error) => {
+        if (error) return res.status(500).send('Error deleting session');
+        if (req.session.user && req.session.user.role === 'admin') {
+            res.redirect('/adminDashboard');
+        } else {
+            res.redirect('/dashboard');
         }
-
-        connection.query('DELETE FROM chargingSessions WHERE sessionId = ?', [sessionId], (error) => {
-            if (error) {
-                console.error("Error deleting session:", error);
-                res.status(500).send('Error deleting session');
-            } else {
-                res.redirect('/dashboard');
-            }
-        });
     });
 });
 
 // ============================================================
-// STUDENT F (Jasper) - Search / Filter / Sort
+// [FUNCTIONAL ROUTE] - STUDENT F (Jasper): Search, Filter, Sort[cite: 1]
 // ============================================================
-
 app.get('/searchVehicles', checkAuthenticated, (req, res) => {
-    // Get the search inputs from the URL. If empty, use default values.
-    let search = req.query.search;
-    let batteryFilter = req.query.batteryFilter;
-    let sort = req.query.sort;
+    let search = req.query.search || '';
+    let batteryFilter = req.query.batteryFilter || '';
+    let sort = req.query.sort || '';
 
-    if (!search) search = '';
-    if (!batteryFilter) batteryFilter = '';
-    if (!sort) sort = '';
-
-    // Start building the SQL query
     let sql = 'SELECT vehicles.*, users.username FROM vehicles JOIN users ON vehicles.userId = users.userId';
     let params = [];
 
-    // Normal users can only see their own vehicles. Admins can see all.
     if (req.session.user.role === 'admin') {
-        sql = sql + ' WHERE (vehicles.model LIKE ? OR vehicles.plateNumber LIKE ?)';
-        params.push('%' + search + '%');
-        params.push('%' + search + '%');
+        sql += ' WHERE (vehicles.model LIKE ? OR vehicles.plateNumber LIKE ?)';
+        params.push('%' + search + '%', '%' + search + '%');
     } else {
-        sql = sql + ' WHERE (vehicles.model LIKE ? OR vehicles.plateNumber LIKE ?) AND vehicles.userId = ?';
-        params.push('%' + search + '%');
-        params.push('%' + search + '%');
-        params.push(req.session.user.userId);
+        sql += ' WHERE (vehicles.model LIKE ? OR vehicles.plateNumber LIKE ?) AND vehicles.userId = ?';
+        params.push('%' + search + '%', '%' + search + '%', req.session.user.userId);
     }
 
-    // Filter by battery health if the user selected one
-    if (batteryFilter === 'high') {
-        sql = sql + ' AND vehicles.batteryHealth >= 90';
-    }
-    if (batteryFilter === 'medium') {
-        sql = sql + ' AND vehicles.batteryHealth >= 80 AND vehicles.batteryHealth < 90';
-    }
-    if (batteryFilter === 'low') {
-        sql = sql + ' AND vehicles.batteryHealth < 80';
-    }
+    if (batteryFilter === 'high') sql += ' AND vehicles.batteryHealth >= 90';
+    if (batteryFilter === 'medium') sql += ' AND vehicles.batteryHealth >= 80 AND vehicles.batteryHealth < 90';
+    if (batteryFilter === 'low') sql += ' AND vehicles.batteryHealth < 80';
 
-    // Sort the results based on what the user selected
-    if (sort === 'healthDesc') {
-        sql = sql + ' ORDER BY vehicles.batteryHealth DESC';
-    } else if (sort === 'healthAsc') {
-        sql = sql + ' ORDER BY vehicles.batteryHealth ASC';
-    } else if (sort === 'mileageDesc') {
-        sql = sql + ' ORDER BY vehicles.mileage DESC';
-    } else if (sort === 'mileageAsc') {
-        sql = sql + ' ORDER BY vehicles.mileage ASC';
-    } else {
-        sql = sql + ' ORDER BY vehicles.model ASC';
-    }
+    if (sort === 'healthDesc') sql += ' ORDER BY vehicles.batteryHealth DESC';
+    else if (sort === 'healthAsc') sql += ' ORDER BY vehicles.batteryHealth ASC';
+    else if (sort === 'mileageDesc') sql += ' ORDER BY vehicles.mileage DESC';
+    else if (sort === 'mileageAsc') sql += ' ORDER BY vehicles.mileage ASC';
+    else sql += ' ORDER BY vehicles.model ASC';
 
-    // Run the query and show the results page
     connection.query(sql, params, (error, results) => {
         if (error) throw error;
-        res.render('searchVehicles', {
-            user: req.session.user,
-            vehicles: results,
-            search: search,
-            batteryFilter: batteryFilter,
-            sort: sort
-        });
+        res.render('searchVehicles', { user: req.session.user, vehicles: results, search, batteryFilter, sort });
     });
 });
 
+// ============================================================
+// [DESIGN & SETUP] - Server Listener
+// ============================================================
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
