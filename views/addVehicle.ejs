@@ -31,6 +31,14 @@
       <h3 class="text-center mb-4 text-dark fw-bold">Add New Vehicle</h3>
       
       <!-- [FUNCTION] Form Submission Handler -->
+      <!-- [CYRUS - VALIDATION FEEDBACK] -->
+      <% if (
+        locals.validationErrors && validationErrors.length > 0
+      ) { %>
+        <div class="alert alert-danger text-center" role="alert">
+          <%= validationErrors[0] %>
+        </div>
+      <% } %>
       <form action="/addVehicle" method="POST" enctype="multipart/form-data">
         <div class="mb-3">
           <label for="model" class="form-label text-muted small fw-semibold">Vehicle Model</label>
