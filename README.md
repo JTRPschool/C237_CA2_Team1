@@ -12,7 +12,7 @@ An EV battery health and charging management web app.
 | D - Ethan | Reschedule charging sessions | /rescheduleCharging/:id | UPDATE |
 | E - Cayden | Delete vehicle / log / session | /deleteVehicle/:id, /deleteLog/:id, /deleteSession/:id | DELETE |
 | F - Jasper | Search / filter / sort vehicles | /searchVehicles | SELECT with WHERE, LIKE, ORDER BY |
-
+| G - Cyrus | Server-Side Validation & Automated Unit Testing | Validation middleware for vehicle, battery log, booking and rescheduling routes | Input validation, boundary testing, Node.js test runner |
 ## Setup (Local)
 
 1. Install dependencies:
@@ -60,6 +60,9 @@ EVApp/
 ├── package.json
 ├── evdb.sql             (database schema + seed data)
 ├── README.md
+├── validators.js         (Cyrus — reusable validation functions)
+├── validators.test.js    (Cyrus — automated unit tests)
+├── TESTING.md            (Cyrus — test cases and results)
 ├── public/
 │   └── images/          (uploaded vehicle images)
 └── views/
