@@ -6,6 +6,11 @@ const mysql = require('mysql2');
 const session = require('express-session');
 const flash = require('connect-flash');
 const multer = require('multer');
+const {
+    isValidBatteryHealth,
+    isValidMileage,
+    isFutureDate
+} = require('./validators');
 const app = express();
 
 // ============================================================
@@ -56,6 +61,14 @@ app.use(session({
 
 app.use(flash());
 
+// ============================================================
+// [FUNCTIONAL LOGIC] STUDENT G (Cyrus) - Makes validation error messages available to EJS pages
+// ============================================================
+app.use((req, res, next) => {
+    res.locals.validationErrors = req.flash('validationError');
+    next();
+});
+
 // Authentication Middleware Check[cite: 1]
 const checkAuthenticated = (req, res, next) => {
     if (req.session.user) {
@@ -90,6 +103,39 @@ const validateRegistration = (req, res, next) => {
     next();
 };
 
+// ============================================================
+// [FUNCTIONAL LOGIC] STUDENT G (Cyrus) - Server-Side Vehicle Validation Middleware
+// ============================================================
+const validateVehicleData = (req, res, next) => {
+    const { batteryHealth, mileage } = req.body;
+
+    if (!isValidBatteryHealth(batteryHealth)) {
+        // return res.status(400).send('Battery health must be a whole number from 0 to 100.'); # If you don't want user to be redirected to another page with just text
+        req.flash('validationError', 'Battery health must be a whole number from 0 to 100.');
+        return res.redirect(303, req.originalUrl);
+    }
+
+    if (!isValidMileage(mileage)) {
+        // return res.status(400).send('Mileage must be a whole number of 0 or above.'); # If you don't want user to be redirected to another page with just text
+        req.flash('validationError', 'Mileage must be a whole number of 0 or above.');
+        return res.redirect(303, req.originalUrl);
+    }
+    next();
+};
+
+// ============================================================
+// [FUNCTIONAL LOGIC] STUDENT G (Cyrus) - Charging Date Validation Middleware
+// ============================================================
+const validateChargingDate = (req, res, next) => {
+    const { scheduledDate } = req.body;
+
+    if (!isFutureDate(scheduledDate)) {
+        // return res.status(400).send('The charging date and time must be in the future.'); # If you don't want user to be redirected to another page with just text
+        req.flash('validationError', 'The charging date and time must be in the future.');
+        return res.redirect(303, req.originalUrl);
+    }
+    next();
+};
 // ============================================================
 // [FUNCTIONAL ROUTE] - STUDENT A (Nasrin): Auth & Control[cite: 1]
 // ============================================================
@@ -202,7 +248,7 @@ app.get('/vehicle/:id', checkAuthenticated, (req, res) => {
 // 1. Static routes MUST come before any dynamic /:id parameters to prevent routing collision
 app.get('/addVehicle', checkAuthenticated, (req, res) => res.render('addVehicle', { user: req.session.user }));
 
-app.post('/addVehicle', checkAuthenticated, upload.single('image'), (req, res) => {
+app.post('/addVehicle', checkAuthenticated, upload.single('image'), validateVehicleData, (req, res) => {
     const { model, plateNumber, batteryHealth, mileage } = req.body;
     const userId = req.session.user.userId;
     let image = req.file ? req.file.filename : null;
@@ -234,7 +280,7 @@ app.get('/bookCharging', checkAuthenticated, (req, res) => {
     });
 });
 
-app.post('/bookCharging', checkAuthenticated, (req, res) => {
+app.post('/bookCharging', checkAuthenticated, validateChargingDate, (req, res) => {
     const { vehicleId, stationId, scheduledDate } = req.body;
     const userId = req.session.user.userId;
     connection.query('INSERT INTO chargingSessions (userId, vehicleId, stationId, scheduledDate, status) VALUES (?, ?, ?, ?, "scheduled")', 
@@ -253,7 +299,7 @@ app.get('/addBatteryLog/:vehicleId', checkAuthenticated, (req, res) => {
     });
 });
 
-app.post('/addBatteryLog/:vehicleId', checkAuthenticated, (req, res) => {
+app.post('/addBatteryLog/:vehicleId', checkAuthenticated, validateVehicleData, (req, res) => {
     const vehicleId = req.params.vehicleId;
     const { batteryHealth, mileage, logDate } = req.body;
     const sql = 'INSERT INTO batteryLogs (vehicleId, batteryHealth, mileage, logDate) VALUES (?, ?, ?, ?)';
@@ -286,7 +332,7 @@ app.get('/rescheduleCharging/:id', checkAuthenticated, (req, res) => {
     });
 });
 
-app.post('/rescheduleCharging/:id', checkAuthenticated, (req, res) => {
+app.post('/rescheduleCharging/:id', checkAuthenticated, validateChargingDate, (req, res) => {
     const { stationId, scheduledDate, status } = req.body;
     connection.query('UPDATE chargingSessions SET stationId = ?, scheduledDate = ?, status = ? WHERE sessionId = ?', 
     [stationId, scheduledDate, status, req.params.id], (error) => {

@@ -4,12 +4,13 @@
   "description": "EV Battery & Charging Management App",
   "main": "app.js",
   "scripts": {
-    "start": "node app.js"
+    "start": "node app.js",
+    "test": "node --test validators.test.js"
   },
   "dependencies": {
     "connect-flash": "^0.1.1",
     "ejs": "^3.1.10",
-    "express": "^4.19.2",
+    "express": "^4.22.2",
     "express-session": "^1.18.0",
     "multer": "^1.4.5-lts.1",
     "mysql2": "^3.10.0"

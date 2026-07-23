@@ -41,6 +41,14 @@
         </div>
       <% } else { %>
         <!-- [FUNCTION] POST Form submission to /bookCharging -->
+        <!-- [CYRUS - VALIDATION FEEDBACK] -->
+        <% if (
+          locals.validationErrors && validationErrors.length > 0
+        ) { %>
+          <div class="alert alert-danger text-center" role="alert">
+            <%= validationErrors[0] %>
+          </div>
+        <% } %>
         <form action="/bookCharging" method="POST">
           <div class="mb-3">
             <label for="vehicleId" class="form-label text-muted small fw-semibold">Select Vehicle</label>

@@ -26,7 +26,14 @@
     <div class="card shadow-sm border-0 p-4 bg-white rounded-4" style="max-width: 500px; width: 100%;">
       <h3 class="text-center mb-2 text-dark fw-bold">Add Battery Log</h3>
       <p class="text-center text-muted small mb-4">Vehicle: <strong><%= vehicle.model %></strong></p>
-
+      <!-- [CYRUS - VALIDATION FEEDBACK] -->
+      <% if (
+        locals.validationErrors && validationErrors.length > 0
+      ) { %>
+        <div class="alert alert-danger text-center" role="alert">
+          <%= validationErrors[0] %>
+        </div>
+      <% } %>
       <form action="/addBatteryLog/<%= vehicle.vehicleId %>" method="POST">
         <div class="mb-3">
           <label for="batteryHealth" class="form-label text-muted small fw-semibold">Battery Health (%)</label>
