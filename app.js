@@ -369,34 +369,73 @@ app.post('/deleteSession/:id', checkAuthenticated, (req, res) => {
 // [FUNCTIONAL ROUTE] - STUDENT F (Jasper): Search, Filter, Sort[cite: 1]
 // ============================================================
 app.get('/searchVehicles', checkAuthenticated, (req, res) => {
-    let search = req.query.search || '';
-    let batteryFilter = req.query.batteryFilter || '';
-    let sort = req.query.sort || '';
+    // Get the search inputs from the URL. If empty, use default values.
+    // Get the search inputs from the URL
+    let search = req.query.search;
+    let batteryFilter = req.query.batteryFilter;
+    let sort = req.query.sort;
 
+    // If the user did not type or select anything, set them to empty
+    if (search == undefined) {
+        search = '';
+    }
+    if (batteryFilter == undefined) {
+        batteryFilter = '';
+    }
+    if (sort == undefined) {
+        sort = '';
+    }
+
+    // Start building the SQL query
     let sql = 'SELECT vehicles.*, users.username FROM vehicles JOIN users ON vehicles.userId = users.userId';
     let params = [];
 
+    // Normal users can only see their own vehicles. Admins can see all.
     if (req.session.user.role === 'admin') {
-        sql += ' WHERE (vehicles.model LIKE ? OR vehicles.plateNumber LIKE ?)';
-        params.push('%' + search + '%', '%' + search + '%');
+        sql = sql + ' WHERE (vehicles.model LIKE ? OR vehicles.plateNumber LIKE ?)';
+        params.push('%' + search + '%');
+        params.push('%' + search + '%');
     } else {
-        sql += ' WHERE (vehicles.model LIKE ? OR vehicles.plateNumber LIKE ?) AND vehicles.userId = ?';
-        params.push('%' + search + '%', '%' + search + '%', req.session.user.userId);
+        sql = sql + ' WHERE (vehicles.model LIKE ? OR vehicles.plateNumber LIKE ?) AND vehicles.userId = ?';
+        params.push('%' + search + '%');
+        params.push('%' + search + '%');
+        params.push(req.session.user.userId);
     }
 
-    if (batteryFilter === 'high') sql += ' AND vehicles.batteryHealth >= 90';
-    if (batteryFilter === 'medium') sql += ' AND vehicles.batteryHealth >= 80 AND vehicles.batteryHealth < 90';
-    if (batteryFilter === 'low') sql += ' AND vehicles.batteryHealth < 80';
+    // Filter by battery health if the user selected one
+    if (batteryFilter === 'high') {
+        sql = sql + ' AND vehicles.batteryHealth >= 90';
+    }
+    if (batteryFilter === 'medium') {
+        sql = sql + ' AND vehicles.batteryHealth >= 80 AND vehicles.batteryHealth < 90';
+    }
+    if (batteryFilter === 'low') {
+        sql = sql + ' AND vehicles.batteryHealth < 80';
+    }
 
-    if (sort === 'healthDesc') sql += ' ORDER BY vehicles.batteryHealth DESC';
-    else if (sort === 'healthAsc') sql += ' ORDER BY vehicles.batteryHealth ASC';
-    else if (sort === 'mileageDesc') sql += ' ORDER BY vehicles.mileage DESC';
-    else if (sort === 'mileageAsc') sql += ' ORDER BY vehicles.mileage ASC';
-    else sql += ' ORDER BY vehicles.model ASC';
+    // Sort the results based on what the user selected
+    if (sort === 'healthDesc') {
+        sql = sql + ' ORDER BY vehicles.batteryHealth DESC';
+    } else if (sort === 'healthAsc') {
+        sql = sql + ' ORDER BY vehicles.batteryHealth ASC';
+    } else if (sort === 'mileageDesc') {
+        sql = sql + ' ORDER BY vehicles.mileage DESC';
+    } else if (sort === 'mileageAsc') {
+        sql = sql + ' ORDER BY vehicles.mileage ASC';
+    } else {
+        sql = sql + ' ORDER BY vehicles.model ASC';
+    }
 
+    // Run the query and show the results page
     connection.query(sql, params, (error, results) => {
         if (error) throw error;
-        res.render('searchVehicles', { user: req.session.user, vehicles: results, search, batteryFilter, sort });
+        res.render('searchVehicles', {
+            user: req.session.user,
+            vehicles: results,
+            search: search,
+            batteryFilter: batteryFilter,
+            sort: sort
+        });
     });
 });
 
